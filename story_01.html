@@ -12,7 +12,6 @@
             box-sizing: border-box;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
-            touch-action: none; /* 禁止页面滚动，提升拖拽流畅度 */
         }
         body {
             background: #eef3e8;
@@ -23,8 +22,7 @@
             justify-content: center;
             align-items: center;
             padding: 16px;
-            -ms-touch-action: pan-y; /* IE/Edge */
-            touch-action: pan-y; /* 允许垂直滚动，但禁止其他触摸动作 */
+            /* 移除这里的touch-action设置 */
         }
         .app-container {
             max-width: 1300px;
@@ -100,6 +98,7 @@
             color: #2c1e0c;
             cursor: grab;
             transition: 0.05s linear;
+            /* 只在卡片上设置touch-action */
             touch-action: none;
         }
         .drag-card:active {

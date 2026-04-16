@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="format-detection" content="telephone=no">
+    <title>神话故事配对 - 触摸拖拽版 | 专为平板优化</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none; /* 禁止页面滚动，提升拖拽流畅度 */
+        }
+        body {
+            background: #eef3e8;
+            font-family: system-ui, 'Segoe UI', 'Noto Sans', 'PingFang SC', Roboto, 'Helvetica Neue', sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+            -ms-touch-action: pan-y; /* IE/Edge */
+            touch-action: pan-y; /* 允许垂直滚动，但禁止其他触摸动作 */
+        }
+        .app-container {
+            max-width: 1300px;
+            width: 100%;
+            background: #fffef7;
+            border-radius: 48px;
+            box-shadow: 0 20px 35px -10px rgba(0,0,0,0.15);
+            padding: 16px 18px 28px 18px;
+            border: 1px solid #e9dbc4;
+        }
+        /* 色块池 */
+        .cards-pool {
+            background: #fff6ea;
+            border-radius: 40px;
+            padding: 16px 14px;
+            margin-bottom: 28px;
+            border: 1px solid #ffe2b5;
+        }
+        .pool-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #a5661a;
+            margin: 0 0 14px 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pool-header:before {
+            content: "👆";
+            font-size: 1.4rem;
+        }
+        .color-group-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            background: rgba(250,245,235,0.6);
+            border-radius: 50px;
+            padding: 6px 16px;
+        }
+        .color-group-row:last-child {
+            margin-bottom: 0;
+        }
+        .group-label {
+            font-weight: 800;
+            font-size: 1rem;
+            min-width: 65px;
+            text-align: center;
+            padding: 5px 10px;
+            border-radius: 40px;
+            background: #f0e5d2;
+            color: #5d3a1a;
+        }
+        .cards-in-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            flex: 1;
+            justify-content: flex-start;
+        }
+        /* 可拖拽卡片 - 触摸优化 */
+        .drag-card {
+            padding: 12px 24px;
+            border-radius: 60px;
+            font-weight: 700;
+            font-size: 1rem;
+            text-align: center;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+            min-width: 110px;
+            border: 1px solid rgba(255,245,200,0.9);
+            letter-spacing: 1px;
+            color: #2c1e0c;
+            cursor: grab;
+            transition: 0.05s linear;
+            touch-action: none;
+        }
+        .drag-card:active {
+            cursor: grabbing;
+        }
+        .drag-card.dragging {
+            opacity: 0.5;
+            transform: scale(0.97);
+        }
+        /* 颜色主题 */
+        .drag-card.red-card, .slotted-card.red-card { background: linear-gradient(135deg, #f87171, #ef4444); color: white; }
+        .drag-card.yellow-card, .slotted-card.yellow-card { background: linear-gradient(135deg, #facc15, #eab308); color: #2c2412; }
+        .drag-card.green-card, .slotted-card.green-card { background: linear-gradient(135deg, #4ade80, #22c55e); color: #163a0a; }
+        
+        /* 表格区域 */
+        .story-table-section {
+            overflow-x: auto;
+            border-radius: 28px;
+            background: white;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        }
+        .story-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 620px;
+        }
+        .story-table th, .story-table td {
+            border: 2px solid #e5d8bd;
+            padding: 12px 8px;
+            vertical-align: middle;
+            text-align: center;
+            background-color: #fffef8;
+        }
+        .story-table th {
+            background-color: #ffefcf;
+            font-size: 1rem;
+            font-weight: 800;
+            color: #8b5a2b;
+        }
+        .story-table td {
+            min-width: 130px;
+            height: 85px;
+        }
+        .story-name {
+            font-weight: 800;
+            background-color: #fef3e0;
+        }
+        .table-slot {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 65px;
+        }
+        .slotted-card {
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: inline-block;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .empty-placeholder {
+            color: #bd9e74;
+            font-size: 0.75rem;
+            font-style: italic;
+            background: #fcf7ef;
+            padding: 6px 10px;
+            border-radius: 30px;
+            border: 1px dashed #decfa9;
+        }
+        .drag-over-highlight {
+            background-color: #fff1cf !important;
+            box-shadow: inset 0 0 0 3px #ffae4d;
+            border-radius: 12px;
+        }
+        .reset-btn {
+            margin-top: 28px;
+            display: flex;
+            justify-content: center;
+        }
+        .btn-reset {
+            background: #fb9c3c;
+            border: none;
+            padding: 10px 28px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: 0.1s;
+        }
+        .btn-reset:active {
+            transform: scale(0.96);
+        }
+        .complete-message {
+            text-align: center;
+            margin-top: 18px;
+            font-weight: 600;
+            background: #ebf5e4;
+            padding: 6px 16px;
+            border-radius: 50px;
+            display: inline-block;
+            width: auto;
+            margin-left: auto;
+            margin-right: auto;
+            font-size: 0.85rem;
+        }
+        .message-box {
+            display: flex;
+            justify-content: center;
+        }
+        footer {
+            font-size: 0.65rem;
+            text-align: center;
+            margin-top: 20px;
+            color: #bc9e72;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="cards-pool">
+        <div class="pool-header">👇 用手指按住色块，拖到下方表格的空白格子里</div>
+        <div class="color-group-row"><div class="group-label" style="background:#ffe0da;">🔴 红色组</div><div class="cards-in-group" id="redGroup"></div></div>
+        <div class="color-group-row"><div class="group-label" style="background:#fff0c0;">🟡 黄色组</div><div class="cards-in-group" id="yellowGroup"></div></div>
+        <div class="color-group-row"><div class="group-label" style="background:#d9f0cf;">🟢 绿色组</div><div class="cards-in-group" id="greenGroup"></div></div>
+    </div>
+
+    <div class="story-table-section">
+        <table class="story-table">
+            <thead><tr><th>神话故事</th><th>故事开头</th><th>故事中间</th><th>故事结尾</th></tr></thead>
+            <tbody>
+                <tr data-story="羿射九日"><td class="story-name"><strong>🏹 羿射九日</strong></td><td class="dropzone" data-story="羿射九日" data-part="start"></td><td class="dropzone" data-story="羿射九日" data-part="middle"></td><td class="dropzone" data-story="羿射九日" data-part="end"></td></tr>
+                <tr data-story="黄帝的传说"><td class="story-name"><strong>🐉 黄帝的传说</strong></td><td class="dropzone" data-story="黄帝的传说" data-part="start"></td><td class="dropzone" data-story="黄帝的传说" data-part="middle"></td><td class="dropzone" data-story="黄帝的传说" data-part="end"></td></tr>
+                <tr data-story="大禹治水"><td class="story-name"><strong>🌊 大禹治水</strong></td><td class="dropzone" data-story="大禹治水" data-part="start"></td><td class="dropzone" data-story="大禹治水" data-part="middle"></td><td class="dropzone" data-story="大禹治水" data-part="end"></td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="reset-btn"><button class="btn-reset" id="resetBtn">⟳ 重置所有配对</button></div>
+    <div class="message-box"><div id="completeMsg" class="complete-message">✨ 按住彩色卡片，拖到空白格里 ✨</div></div>
+    <footer>💡 提示：每个格子只能放一张卡片，拖走后上方卡片会消失。</footer>
+</div>
+
+<script>
+    // ----- 九张卡片数据 -----
+    const allCards = [
+        { text: "十日炙烤", color: "red" }, { text: "出行劳作不便", color: "red" }, { text: "洪水泛滥", color: "red" },
+        { text: "射下九日", color: "yellow" }, { text: "造车造船", color: "yellow" }, { text: "疏通河道", color: "yellow" },
+        { text: "重获幸福", color: "green" }, { text: "生活便利", color: "green" }, { text: "安居乐业", color: "green" }
+    ];
+    
+    // 剩余未配对的卡片
+    let remainingCards = [...allCards];
+    
+    // 表格格子数据
+    let slots = {
+        "羿射九日_start": null, "羿射九日_middle": null, "羿射九日_end": null,
+        "黄帝的传说_start": null, "黄帝的传说_middle": null, "黄帝的传说_end": null,
+        "大禹治水_start": null, "大禹治水_middle": null, "大禹治水_end": null
+    };
+    
+    // DOM 元素
+    const redGroup = document.getElementById('redGroup');
+    const yellowGroup = document.getElementById('yellowGroup');
+    const greenGroup = document.getElementById('greenGroup');
+    const resetBtn = document.getElementById('resetBtn');
+    const completeMsg = document.getElementById('completeMsg');
+    
+    // ----- 渲染上方色块（纯触摸拖拽）-----
+    function renderCards() {
+        redGroup.innerHTML = '';
+        yellowGroup.innerHTML = '';
+        greenGroup.innerHTML = '';
+        
+        const reds = remainingCards.filter(c => c.color === 'red');
+        const yellows = remainingCards.filter(c => c.color === 'yellow');
+        const greens = remainingCards.filter(c => c.color === 'green');
+        
+        reds.forEach(card => redGroup.appendChild(createDraggableCard(card)));
+        yellows.forEach(card => yellowGroup.appendChild(createDraggableCard(card)));
+        greens.forEach(card => greenGroup.appendChild(createDraggableCard(card)));
+        
+        // 空组占位
+        if (reds.length === 0 && remainingCards.length > 0) addEmptyHint(redGroup, 'red');
+        if (yellows.length === 0 && remainingCards.length > 0) addEmptyHint(yellowGroup, 'yellow');
+        if (greens.length === 0 && remainingCards.length > 0) addEmptyHint(greenGroup, 'green');
+    }
+    
+    function addEmptyHint(container, color) {
+        let hint = document.createElement('div');
+        hint.className = `drag-card ${color}-card`;
+        hint.style.opacity = '0.6';
+        hint.style.cursor = 'default';
+        hint.innerText = '✨ 已配完';
+        container.appendChild(hint);
+    }
+    
+    // 创建可拖拽卡片（支持鼠标和触摸事件）
+    function createDraggableCard(card) {
+        const el = document.createElement('div');
+        el.className = `drag-card ${card.color}-card`;
+        el.innerText = card.text;
+        el.setAttribute('data-text', card.text);
+
+        let isDragging = false;
+        let startX, startY;
+        let clone = null;
+        let eventType = ''; // 用于区分鼠标和触摸事件
+        let moveFrameId = null; // 用于取消重复动画帧
+        
+        // 统一的开始处理函数
+        function handleStart(e) {
+            // 确定事件类型
+            if (e.type === 'touchstart') {
+                if (!e.touches || e.touches.length === 0) return;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                eventType = 'touch';
+                e.preventDefault();
+            } else { // 鼠标事件
+                startX = e.clientX;
+                startY = e.clientY;
+                eventType = 'mouse';
+                e.preventDefault();
+            }
+
+            if (!remainingCards.some(c => c.text === card.text)) return;
+            isDragging = true;
+            el.classList.add('dragging');
+
+            // 创建克隆体跟随指针/鼠标
+            clone = el.cloneNode(true);
+            clone.style.position = 'fixed';
+            clone.style.top = `${startY - 30}px`;
+            clone.style.left = `${startX - 40}px`;
+            clone.style.width = `${el.offsetWidth}px`;
+            clone.style.opacity = '0.8';
+            clone.style.pointerEvents = 'none';
+            clone.style.zIndex = '9999';
+            clone.style.margin = '0';
+            document.body.appendChild(clone);
+        }
+
+        // 统一的移动处理函数
+        function handleMove(e) {
+            if (!isDragging) return;
+
+            // 使用requestAnimationFrame优化性能
+            if (moveFrameId) {
+                cancelAnimationFrame(moveFrameId);
+            }
+            
+            moveFrameId = requestAnimationFrame(() => {
+                let clientX, clientY;
+                if (eventType === 'touch') {
+                    if (!e.touches || e.touches.length === 0) return;
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                    e.preventDefault();
+                } else { // 鼠标事件
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                    e.preventDefault();
+                }
+
+                if (clone) {
+                    clone.style.top = `${clientY - 30}px`;
+                    clone.style.left = `${clientX - 40}px`;
+                }
+
+                // 高亮目标格子
+                const elemUnder = document.elementFromPoint(clientX, clientY);
+                let targetCell = null;
+                if (elemUnder && elemUnder.classList.contains('dropzone')) {
+                    targetCell = elemUnder;
+                } else {
+                    // 查找父级是否有dropzone
+                    let parent = elemUnder?.parentElement;
+                    while (parent && !parent.classList.contains('dropzone')) {
+                        parent = parent.parentElement;
+                    }
+                    targetCell = parent;
+                }
+
+                document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('drag-over-highlight'));
+                if (targetCell) targetCell.classList.add('drag-over-highlight');
+            });
+        }
+
+        // 统一的结束处理函数
+        function handleEnd(e) {
+            if (!isDragging) return;
+
+            let clientX, clientY;
+            if (eventType === 'touch') {
+                if (!e.changedTouches || e.changedTouches.length === 0) return;
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+                e.preventDefault();
+            } else { // 鼠标事件
+                clientX = e.clientX;
+                clientY = e.clientY;
+                e.preventDefault();
+            }
+
+            const elemUnder = document.elementFromPoint(clientX, clientY);
+            let targetCell = null;
+            if (elemUnder && elemUnder.classList.contains('dropzone')) {
+                targetCell = elemUnder;
+            } else {
+                // 查找父级是否有dropzone
+                let parent = elemUnder?.parentElement;
+                while (parent && !parent.classList.contains('dropzone')) {
+                    parent = parent.parentElement;
+                }
+                targetCell = parent;
+            }
+
+            if (targetCell && remainingCards.some(c => c.text === card.text)) {
+                const story = targetCell.getAttribute('data-story');
+                const part = targetCell.getAttribute('data-part');
+                const key = `${story}_${part}`;
+                if (slots[key] !== null) {
+                    showMsg('❌ 这个格子已经有内容了，不能覆盖', 1000);
+                } else {
+                    // 配对成功
+                    const idx = remainingCards.findIndex(c => c.text === card.text);
+                    if (idx !== -1) remainingCards.splice(idx, 1);
+                    slots[key] = card.text;
+                    renderTable();
+                    renderCards();
+                    checkComplete();
+                    showMsg(`✅ ${card.text} 配对成功！`, 800);
+                }
+            }
+
+            // 清理
+            if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+            el.classList.remove('dragging');
+            document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('drag-over-highlight'));
+            isDragging = false;
+            eventType = '';
+            
+            // 取消动画帧
+            if (moveFrameId) {
+                cancelAnimationFrame(moveFrameId);
+                moveFrameId = null;
+            }
+        }
+
+        // 添加触摸事件监听器
+        el.addEventListener('touchstart', handleStart);
+        el.addEventListener('touchmove', handleMove);
+        el.addEventListener('touchend', handleEnd);
+        el.addEventListener('touchcancel', () => {
+            if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+            el.classList.remove('dragging');
+            document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('drag-over-highlight'));
+            isDragging = false;
+            eventType = '';
+            
+            if (moveFrameId) {
+                cancelAnimationFrame(moveFrameId);
+                moveFrameId = null;
+            }
+        });
+
+        // 添加鼠标事件监听器
+        el.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+
+        return el;
+    }
+    
+    // 渲染表格
+    function renderTable() {
+        for (const [key, val] of Object.entries(slots)) {
+            const [story, part] = key.split('_');
+            const cell = document.querySelector(`.dropzone[data-story="${story}"][data-part="${part}"]`);
+            if (cell) {
+                cell.innerHTML = '';
+                const div = document.createElement('div');
+                div.className = 'table-slot';
+                if (val) {
+                    const cardInfo = allCards.find(c => c.text === val);
+                    const color = cardInfo ? cardInfo.color : 'green';
+                    const badge = document.createElement('div');
+                    badge.className = `slotted-card ${color}-card`;
+                    badge.innerText = val;
+                    div.appendChild(badge);
+                } else {
+                    const ph = document.createElement('div');
+                    ph.className = 'empty-placeholder';
+                    ph.innerText = '⬅️ 拖拽至此';
+                    div.appendChild(ph);
+                }
+                cell.appendChild(div);
+            }
+        }
+    }
+    
+    let msgTimer;
+    function showMsg(msg, dur) {
+        if (msgTimer) clearTimeout(msgTimer);
+        completeMsg.innerText = msg;
+        completeMsg.style.background = "#fff0cf";
+        msgTimer = setTimeout(() => { checkComplete(); completeMsg.style.background = ""; }, dur);
+    }
+    
+    function checkComplete() {
+        const allFilled = Object.values(slots).every(v => v !== null);
+        const noCards = remainingCards.length === 0;
+        if (allFilled && noCards) {
+            completeMsg.innerHTML = '🎉 太棒了！所有故事配对完整！ 🎉';
+            completeMsg.style.background = "#daf4cf";
+            completeMsg.style.color = "#1f5437";
+        } else {
+            const filled = Object.values(slots).filter(v => v !== null).length;
+            completeMsg.innerHTML = `📖 已配对 ${filled} / 9 个格子，剩余 ${remainingCards.length} 个色块`;
+            completeMsg.style.background = "#ebf9e6";
+            completeMsg.style.color = "#2d6a4f";
+        }
+    }
+    
+    function resetGame() {
+        slots = {
+            "羿射九日_start": null, "羿射九日_middle": null, "羿射九日_end": null,
+            "黄帝的传说_start": null, "黄帝的传说_middle": null, "黄帝的传说_end": null,
+            "大禹治水_start": null, "大禹治水_middle": null, "大禹治水_end": null
+        };
+        remainingCards = [...allCards];
+        renderTable();
+        renderCards();
+        checkComplete();
+        showMsg('🔄 已重置，可以重新开始配对', 1200);
+    }
+    
+    // 初始化
+    renderCards();
+    renderTable();
+    resetBtn.addEventListener('click', resetGame);
+    checkComplete();
+</script>
+</body>
+</html>
